@@ -402,6 +402,7 @@ Map<String, bool> roleRevealed = {};
   int currentPlayerIndex = 0;
   int roundNumber = 1;
   bool gameStarted = false;
+  List<String> deadThisRound = [];   // 👈 ADD THIS
   
   // Night actions
   String? killerTarget;
@@ -694,6 +695,7 @@ else {
   }
   
 void processNightPhase() {
+ deadThisRound.clear();
   String result = "";
   String? actualTarget = killerTarget;
   bool killerSucceeded = false;
@@ -734,6 +736,7 @@ bool doctorSaved = false;
         // Grandma kills the attacker
         result += "\n";
         alivePlayers.remove(actualAttacker);
+deadThisRound.add(actualAttacker);
         deadPlayer = actualAttacker;
         actualTarget = null;
         grandmaKilledAttacker = true;
@@ -752,6 +755,7 @@ bool doctorSaved = false;
         alivePlayers.remove(firstKiller);
         deadPlayer = firstKiller;
         grandmaKilledAttacker = true;
+ deadThisRound.add(firstKiller);
       }
       actualTarget = null;
     }
@@ -797,6 +801,7 @@ if (gamechangerSwap.length == 2) {
     killerSucceeded = true;
     deadPlayer = actualTarget;
     alivePlayers.remove(actualTarget);
+ deadThisRound.add(actualTarget);
     
     if (actualTarget == godfather) {
       if (bodyguard != null && alivePlayers.contains(bodyguard)) {
@@ -915,6 +920,7 @@ if (gamechangerSwap.length == 2) {
         players: widget.players,
         playerRoles: playerRoles,
         alivePlayers: alivePlayers,
+        deadThisRound: deadThisRound,
         roundNumber: roundNumber,
         nightResult: nightResult,
         godfather: godfather,
@@ -1007,6 +1013,7 @@ if (eliminated == godfather) {
         hasSelected = false;
         selectedPlayer = null;
         villagerGuess = null;
+        deadThisRound.clear();
         
         for (var player in roleRevealed.keys) {
           roleRevealed[player] = false;
@@ -1632,6 +1639,7 @@ class VotingScreen extends StatefulWidget {
   final List<String> players;
   final Map<String, String> playerRoles;
   final List<String> alivePlayers;
+final List<String> deadThisRound;
   final int roundNumber;
   final String nightResult;
   final String? godfather;
@@ -1641,6 +1649,7 @@ class VotingScreen extends StatefulWidget {
     required this.players,
     required this.playerRoles,
     required this.alivePlayers,
+    required this.deadThisRound,
     required this.roundNumber,
     required this.nightResult,
     this.godfather,
@@ -1660,14 +1669,35 @@ class _VotingScreenState extends State<VotingScreen> {
   bool _resultShown = false;
 
   @override
-  void initState() {
-    super.initState();
-    for (var player in widget.alivePlayers) {
+void initState() {
+  super.initState();
+  for (var player in widget.alivePlayers) {
+    votes[player] = 0;
+    playerVotes[player] = [];
+  }
+  _updateVotersList();
+}
+
+@override
+void didChangeDependencies() {
+  super.didChangeDependencies();
+  _updateVotersList();
+}
+void _updateVotersList() {
+  List<String> allVoters = List.from(widget.alivePlayers);
+  allVoters.addAll(widget.deadThisRound);
+  votersList = allVoters;
+  
+  // Initialize votes and playerVotes for dead players
+  for (var player in widget.deadThisRound) {
+    if (!votes.containsKey(player)) {
       votes[player] = 0;
+    }
+    if (!playerVotes.containsKey(player)) {
       playerVotes[player] = [];
     }
-    votersList = List.from(widget.alivePlayers);
   }
+}
 
   bool hasVoted(String player) => playerVotes[player]!.length >= 2;
   int getVotesLeft(String player) => 2 - playerVotes[player]!.length;
@@ -1846,6 +1876,7 @@ void skipToNextVoter() {
     
     String currentVoter = votersList[currentVoterIndex];
 
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -1949,9 +1980,10 @@ void skipToNextVoter() {
                 crossAxisSpacing: 6,
               ),// Player grid
  
-             itemCount: widget.alivePlayers.length,
+            itemCount: votersList.length,
 itemBuilder: (context, index) {
-  String player = widget.alivePlayers[index];
+  String player = votersList[index];
+
                 bool isCurrentVoter = player == currentVoter;
                 int votesReceived = votes[player] ?? 0;
                 bool alreadyVotedFor = playerVotes[currentVoter]?.contains(player) ?? false;
@@ -1959,6 +1991,7 @@ itemBuilder: (context, index) {
                     ? hasTieBreakerVoted(currentVoter)
                     : hasVoted(currentVoter);
 bool canBeVoted = !isTieBreaker || tiedPlayersList.contains(player);
+bool isDead = !widget.alivePlayers.contains(player);
 
                 return Card(
                   elevation: 3,
@@ -1977,6 +2010,15 @@ bool canBeVoted = !isTieBreaker || tiedPlayersList.contains(player);
                         );
                         return;
                       }
+
+if (isDead) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text("❌ You cannot vote for a dead player!")),
+  );
+  return;
+}
+
+     
 if (!canBeVoted) {
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(content: Text("❌ You can only vote for tied players: ${tiedPlayersList.join(", ")}")),
@@ -2003,11 +2045,11 @@ if (!canBeVoted) {
                       children: [
                         Text(
                           player,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
+                         style: TextStyle(
+  fontSize: 13,
+  fontWeight: FontWeight.bold,
+  color: isDead ? Colors.grey : Colors.white,
+),
                           textAlign: TextAlign.center,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -2021,9 +2063,14 @@ if (!canBeVoted) {
                           ),
                           child: Text(
                             "🗳️ $votesReceived",
-                            style: const TextStyle(fontSize: 13, color: Colors.yellow, fontWeight: FontWeight.bold),
+                            style: TextStyle(fontSize: 13, color: isDead ? Colors.grey : Colors.yellow, fontWeight: FontWeight.bold),
                           ),
                         ),
+                        if (isDead)
+                          const Text(
+                            "(DEAD)",
+                            style: TextStyle(fontSize: 10, color: Colors.red),
+                          ),
                       ],
                     ),
                   ),
