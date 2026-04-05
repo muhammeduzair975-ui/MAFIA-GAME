@@ -723,6 +723,7 @@ bool doctorSaved = false;
       }
     }
   if (actualAttacker != null) {
+grandmaAttacker = actualAttacker;
       // Check if doctor saved the attacker
       if (doctorTarget == actualAttacker) {
         // Doctor saved the attacker, no one dies
@@ -745,6 +746,7 @@ deadThisRound.add(actualAttacker);
     } else {
       // Fallback: remove the first killer
       String firstKiller = killerChoices.keys.first;
+grandmaAttacker = firstKiller;
       if (doctorTarget == firstKiller) {
         result += "\n";
         doctorSaved = true;
@@ -844,17 +846,20 @@ if (gamechangerSwap.length == 2) {
   } else {
     result += "🔪 No attack happened\n";
   }
-  
-  // 2. Doctor result
-  if (doctorSaved) {
+   
+ // 2. Doctor result
+  if (doctorSaved && !grandmaKilledAttacker) {
     result += "🩺 Doctor succeeded to save\n";
-} else if (grandmaKilledAttacker) {
+  } else if (grandmaKilledAttacker && doctorTarget == grandmaAttacker) {
     result += "🩺 Doctor succeeded to save\n";
+  } else if (grandmaKilledAttacker) {
+    result += "🩺 Doctor failed to save\n";
   } else if (killerTarget != null && !doctorSaved) {
     result += "🩺 Doctor failed to save\n";
   } else {
     result += "🩺 Doctor failed to save\n";
   }
+   
   
   // 3. Detective result
   if (detectiveTarget != null) {
@@ -1616,7 +1621,22 @@ Widget build(BuildContext context) {
                   const SizedBox(height: 30),
                   if (timerFinished)
                     ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () {
+  Navigator.pushReplacement(
+    context,
+    MaterialPageRoute(
+      builder: (context) => VotingScreen(
+        players: widget.players,
+        playerRoles: widget.playerRoles,
+        alivePlayers: widget.alivePlayers,
+        deadThisRound: [],
+        roundNumber: widget.roundNumber,
+        nightResult: widget.nightResult,
+        godfather: null,
+      ),
+    ),
+  );
+},
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
@@ -1839,7 +1859,7 @@ void _finishTieBreaker() {
 
   void _showResult(String? eliminated, int votesCount) {
   // Navigate to result screen
-  Navigator.push(
+   Navigator.pushReplacement(
     context,
     MaterialPageRoute(
       builder: (context) => VotingResultScreen(
