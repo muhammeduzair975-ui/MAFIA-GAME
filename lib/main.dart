@@ -180,7 +180,7 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
 
   void _startGame() {
     int totalPlayers = widget.players.length;
-  if (totalPlayers < 5) {
+  if (totalPlayers < 4) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("Need at least 4 players!")),
     );
@@ -1622,7 +1622,7 @@ Widget build(BuildContext context) {
                   if (timerFinished)
                     ElevatedButton(
                       onPressed: () {
-  Navigator.pushReplacement(
+  Navigator.push(
     context,
     MaterialPageRoute(
       builder: (context) => VotingScreen(
@@ -1859,7 +1859,7 @@ void _finishTieBreaker() {
 
   void _showResult(String? eliminated, int votesCount) {
   // Navigate to result screen
-   Navigator.pushReplacement(
+   Navigator.push(
     context,
     MaterialPageRoute(
       builder: (context) => VotingResultScreen(
