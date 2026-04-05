@@ -1766,13 +1766,27 @@ void _startTieBreaker(List<String> tiedPlayers) {
     currentVoterIndex = 0;
     _resultShown = false;
     
-    // Initialize votes for ALL alive players (to show them in grid)
+    // Initialize votes for ALL alive players
     for (var player in widget.alivePlayers) {
       votes[player] = 0;
       playerVotes[player] = [];
     }
+    
+    // ALSO initialize votes for dead players (to prevent null errors)
+    for (var player in widget.deadThisRound) {
+      if (!votes.containsKey(player)) {
+        votes[player] = 0;
+      }
+      if (!playerVotes.containsKey(player)) {
+        playerVotes[player] = [];
+      }
+    }
   });
+  // Update voters list for tie breaker
+  _updateVotersList();
 }
+
+
 void castTieBreakerVote(String voter, String target) {
   // Check if target is in tied players list
   if (!tiedPlayersList.contains(target)) {
