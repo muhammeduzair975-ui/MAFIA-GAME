@@ -175,6 +175,7 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
   bool includeGodfather = true;
   bool includeGrandma = true;
   bool includeJester = true;
+int jesterCount = 1;
   bool includeBodyguard = true;
   bool includeGamechanger = true;
 
@@ -207,10 +208,14 @@ if (killerCount < 1) killerCount = 1;
     roles.add("Detective");
     
     if (includeGrandma) roles.add("Grandma");
-    if (includeJester) roles.add("Jester");
+   
     if (includeBodyguard) roles.add("Bodyguard");
     if (includeGamechanger) roles.add("Gamechanger");
-    
+    if (includeJester) {
+  for (int i = 0; i < jesterCount; i++) {
+    roles.add("Jester");
+  }
+}
     while (roles.length < totalPlayers) {
       roles.add("Villager");
     }
@@ -288,7 +293,7 @@ if (killerCount < 1) killerCount = 1;
               
               _buildOptionalCard("👑 Godfather", "Leader of killers. Detective cannot find him!", includeGodfather, (v) => setState(() => includeGodfather = v)),
               _buildOptionalCard("👵🔫 Grandma", "If killers target her, the attacker dies!", includeGrandma, (v) => setState(() => includeGrandma = v)),
-              _buildOptionalCard("🃏 Jester", "Try to get voted out to win instantly!", includeJester, (v) => setState(() => includeJester = v)),
+              _buildJesterCard(),
               _buildOptionalCard("🛡️ Bodyguard", "Becomes Godfather if Godfather dies", includeBodyguard, (v) => setState(() => includeBodyguard = v)),
               _buildOptionalCard("🔄 Gamechanger", "Swap two players - changes who dies", includeGamechanger, (v) => setState(() => includeGamechanger = v)),
               
@@ -382,8 +387,76 @@ if (killerCount < 1) killerCount = 1;
       ),
     );
   }
+Widget _buildJesterCard() {
+  return Container(
+    margin: const EdgeInsets.only(bottom: 6),
+    padding: const EdgeInsets.all(10),
+    decoration: BoxDecoration(
+      color: Colors.grey[800],
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text("🃏 Jester", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                  const Text("All Jesters eliminated = Jester team wins!", style: TextStyle(fontSize: 11, color: Colors.grey)),
+                ],
+              ),
+            ),
+            Checkbox(
+              value: includeJester,
+              onChanged: (v) => setState(() {
+                includeJester = v ?? false;
+                if (!includeJester) jesterCount = 1;
+              }),
+              activeColor: Colors.green,
+            ),
+          ],
+        ),
+        if (includeJester)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text("Number of Jesters:", style: TextStyle(fontSize: 13)),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.remove, size: 20),
+                      onPressed: jesterCount > 1
+                          ? () => setState(() => jesterCount--)
+                          : null,
+                      constraints: const BoxConstraints(),
+                      style: IconButton.styleFrom(padding: const EdgeInsets.all(4)),
+                    ),
+                    Text(
+                      "$jesterCount",
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.add, size: 20),
+                      onPressed: jesterCount < 3
+                          ? () => setState(() => jesterCount++)
+                          : null,
+                      constraints: const BoxConstraints(),
+                      style: IconButton.styleFrom(padding: const EdgeInsets.all(4)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+      ],
+    ),
+  );
 }
-
+}
 // ==================== GAME SCREEN ====================
 class GameScreen extends StatefulWidget {
   final List<String> players;
@@ -403,6 +476,7 @@ Map<String, bool> roleRevealed = {};
   int roundNumber = 1;
   bool gameStarted = false;
   List<String> deadThisRound = [];   // 👈 ADD THIS
+  List<String> jesters = [];
   
   // Night actions
   String? killerTarget;
@@ -439,6 +513,7 @@ void initState() {
     playerRoles[widget.players[i]] = widget.roles[i];
     if (widget.roles[i] == "Godfather") godfather = widget.players[i];
     if (widget.roles[i] == "Bodyguard") bodyguard = widget.players[i];
+if (widget.roles[i] == "Jester") jesters.add(widget.players[i]);
     roleRevealed[widget.players[i]] = false;
   }
 } 
@@ -804,6 +879,15 @@ if (gamechangerSwap.length == 2) {
     deadPlayer = actualTarget;
     alivePlayers.remove(actualTarget);
  deadThisRound.add(actualTarget);
+
+    // Check if Jester was killed at night
+    if (playerRoles[actualTarget] == "Jester") {
+      jesters.remove(actualTarget);
+      if (jesters.isEmpty) {
+        result += "\n\n🃏 JESTER TEAM WINS! All Jesters eliminated! 🃏";
+        gameEnded = true;
+      }
+    }
     
     if (actualTarget == godfather) {
       if (bodyguard != null && alivePlayers.contains(bodyguard)) {
@@ -936,24 +1020,29 @@ if (gamechangerSwap.length == 2) {
     print("Eliminated player: $eliminated");
     print("Alive players BEFORE: $alivePlayers");
 
-    // Check if Jester was eliminated FIRST
-    if (eliminated != null && playerRoles[eliminated] == "Jester") {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          title: const Text("🃏 JESTER WINS!"),
-          content: Text("$eliminated was voted out and wins the game!"),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.popUntil(context, (route) => route.isFirst),
-              child: const Text("PLAY AGAIN"),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
+  // Check if Jester was eliminated
+if (eliminated != null && playerRoles[eliminated] == "Jester") {
+  jesters.remove(eliminated);
+  
+  // Check if ALL Jesters are eliminated
+  if (jesters.isEmpty) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text("🃏 JESTER TEAM WINS!"),
+        content: const Text("All Jesters have been eliminated! Jesters win!"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.popUntil(context, (route) => route.isFirst),
+            child: const Text("PLAY AGAIN"),
+          ),
+        ],
+      ),
+    );
+    return;
+  }
+}
     
     // Remove eliminated player from alivePlayers
     if (eliminated != null && !gameEnded) {
@@ -1299,6 +1388,46 @@ List<String> _getAllKillers() {
                   textAlign: TextAlign.center,
                 ),
               ),
+
+                        // Show Jester team members (only for Jester when role revealed)
+            if (revealed && currentRole == "Jester" && jesters.length > 1)
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.purple[800],
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Column(
+                    children: [
+                      const Text(
+                        "🃏 JESTER TEAM",
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                      const SizedBox(height: 9),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: jesters.map((jester) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.black45,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              jester,
+                              style: const TextStyle(fontSize: 12, color: Colors.white),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
    // Show Godfather and Bodyguard info (only for killers when role revealed)
 if (revealed && (currentRole == "Killer" || currentRole == "Godfather"))
   Padding(
