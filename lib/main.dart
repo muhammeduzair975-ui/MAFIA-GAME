@@ -172,12 +172,12 @@ class CharacterSelectionScreen extends StatefulWidget {
 }
 
 class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
-  bool includeGodfather = true;
-  bool includeGrandma = true;
-  bool includeJester = true;
+bool includeGodfather = false;
+bool includeGrandma = false;
+bool includeJester = false;
 int jesterCount = 1;
-  bool includeBodyguard = true;
-  bool includeGamechanger = true;
+bool includeBodyguard = false;
+bool includeGamechanger = false;
 
   void _startGame() {
     int totalPlayers = widget.players.length;
@@ -984,22 +984,54 @@ if (gamechangerSwap.length == 2) {
   });
 }
   
-  void startDiscussion() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => DiscussionScreen(
-          players: widget.players,
-          playerRoles: playerRoles,
-          alivePlayers: alivePlayers,
-          roundNumber: roundNumber,
-          nightResult: nightResult,
-        ),
+void startDiscussion() {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => DiscussionScreen(
+        players: widget.players,
+        playerRoles: playerRoles,
+        alivePlayers: alivePlayers,
+        deadThisRound: deadThisRound,
+        roundNumber: roundNumber,
+        nightResult: nightResult,
       ),
-    ).then((_) {
-      if (!gameEnded) startVoting();
-    });
-  }
+    ),
+  ).then((eliminated) {
+    // Receive eliminated player from DiscussionScreen
+    print("Back from discussion, eliminated: $eliminated");
+    
+    if (eliminated != null && !gameEnded) {
+      setState(() {
+        alivePlayers.remove(eliminated);
+      });
+    }
+    
+    // Start next round
+    if (!gameEnded && alivePlayers.length > 1) {
+      setState(() {
+        roundNumber++;
+        currentPlayerIndex = 0;
+        killerTarget = null;
+        doctorTarget = null;
+        detectiveTarget = null;
+        detectiveResult = null;
+        gamechangerSwap = [];
+        showNightActions = false;
+        killersDone = false;
+        killerChoices.clear();
+        hasSelected = false;
+        selectedPlayer = null;
+        villagerGuess = null;
+        deadThisRound.clear();
+        
+        for (var player in roleRevealed.keys) {
+          roleRevealed[player] = false;
+        }
+      });
+    }
+  });
+}
   
   void startVoting() {
   Navigator.push(
@@ -1043,13 +1075,15 @@ if (eliminated != null && playerRoles[eliminated] == "Jester") {
     return;
   }
 }
-    
     // Remove eliminated player from alivePlayers
-    if (eliminated != null && !gameEnded) {
-      if (alivePlayers.contains(eliminated)) {
-        alivePlayers.remove(eliminated);
-        print("Removed $eliminated from alive players");
-      }
+if (eliminated != null && !gameEnded) {
+  if (alivePlayers.contains(eliminated)) {
+    setState(() {                    // ✅ ADD setState HERE
+      alivePlayers.remove(eliminated);
+    });
+    print("Removed $eliminated from alive players");
+  }
+    
       print("Alive players AFTER: $alivePlayers");
 
       // Check if Godfather was eliminated
@@ -1629,6 +1663,7 @@ class DiscussionScreen extends StatefulWidget {
   final List<String> players;
   final Map<String, String> playerRoles;
   final List<String> alivePlayers;
+  final List<String> deadThisRound;
   final int roundNumber;
   final String nightResult;
 
@@ -1637,6 +1672,7 @@ class DiscussionScreen extends StatefulWidget {
     required this.players,
     required this.playerRoles,
     required this.alivePlayers,
+    required this.deadThisRound,
     required this.roundNumber,
     required this.nightResult,
   });
@@ -1646,7 +1682,7 @@ class DiscussionScreen extends StatefulWidget {
 }
 
 class _DiscussionScreenState extends State<DiscussionScreen> {
-  int secondsLeft = 180;
+  int secondsLeft = 4;
   Timer? timer;
   bool timerFinished = false;
 
@@ -1750,21 +1786,24 @@ Widget build(BuildContext context) {
                   const SizedBox(height: 30),
                   if (timerFinished)
                     ElevatedButton(
-                      onPressed: () {
-  Navigator.push(
-    context,
+  onPressed: () async {
+      // Wait for voting to finish and get eliminated player
+      final eliminated = await Navigator.push(
+        context,
     MaterialPageRoute(
       builder: (context) => VotingScreen(
         players: widget.players,
         playerRoles: widget.playerRoles,
         alivePlayers: widget.alivePlayers,
-        deadThisRound: [],
+        deadThisRound: widget.deadThisRound,
         roundNumber: widget.roundNumber,
         nightResult: widget.nightResult,
         godfather: null,
       ),
     ),
   );
+// Return eliminated player back to GameScreen
+      Navigator.pop(context, eliminated);
 },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
@@ -1852,6 +1891,7 @@ void _updateVotersList() {
   int getVotesLeft(String player) => 2 - playerVotes[player]!.length;
 
   void castVote(String voter, String target) {
+print("CASTING VOTE - Voter: $voter, Target: $target");  // ADD THIS
     if (playerVotes[voter]!.contains(target)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("❌ You cannot vote for the same person twice!")),
@@ -1863,7 +1903,7 @@ void _updateVotersList() {
       playerVotes[voter]!.add(target);
       votes[target] = votes[target]! + 1;
     });
-    
+     print("Updated votes: $votes");  // ADD THIS
     // Check if this voter has completed their votes
     if (hasVoted(voter)) {
       _moveToNextVoter();
@@ -1898,6 +1938,9 @@ void _updateVotersList() {
         tiedPlayers.add(entry.key);
       }
     }
+// ADD THIS PRINT
+  print("FINAL RESULT - Eliminated player: $eliminated, Votes: $maxVotes");
+  print("Votes map: $votes");
 
     if (tiedPlayers.length > 1) {
       _startTieBreaker(tiedPlayers);
@@ -1985,32 +2028,41 @@ void _finishTieBreaker() {
 
   _showResult(eliminated, maxVotes);
 }
-
-  void _showResult(String? eliminated, int votesCount) {
-  // Navigate to result screen
-   Navigator.push(
+ 
+void _showResult(String? eliminated, int votesCount) {
+  final String? eliminatedPlayer = eliminated;
+  print("ELIMINATED PLAYER BEING SENT: $eliminatedPlayer");
+  
+  // Go to result screen
+  Navigator.push(
     context,
     MaterialPageRoute(
       builder: (context) => VotingResultScreen(
-        eliminated: eliminated,
+        eliminated: eliminatedPlayer,
         votesCount: votesCount,
         onContinue: () {
-          // This closes the result screen and returns to voting screen
+          print("RETURNING PLAYER: $eliminatedPlayer");
+          // Pop the result screen
           Navigator.pop(context);
-          // Then close voting screen and return eliminated player
-          Navigator.pop(context, eliminated);
+          // Pop the voting screen and return the player
+          Navigator.pop(context, eliminatedPlayer);
         },
       ),
     ),
   );
 }
+
 void skipToNextVoter() {
   setState(() {
     currentVoterIndex++;
   });
   
   if (currentVoterIndex >= votersList.length) {
-    _showFinalResult();
+    if (isTieBreaker) {
+      _finishTieBreaker();
+    } else {
+      _showFinalResult();
+    }
   }
 }
 
@@ -2338,7 +2390,7 @@ class VotingResultScreen extends StatelessWidget {
                     ),
                   ),
                   child: const Text(
-                    "CONTINUE TO NEXT ROUND",
+                    "KILLERS ARE STILL IN GAME---NEXT ROUND",
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
