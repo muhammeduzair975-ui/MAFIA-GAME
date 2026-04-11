@@ -172,12 +172,12 @@ class CharacterSelectionScreen extends StatefulWidget {
 }
 
 class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
-bool includeGodfather = false;
-bool includeGrandma = false;
-bool includeJester = false;
+  bool includeGodfather = false;
+  bool includeGrandma = false;
+  bool includeJester = false;
 int jesterCount = 1;
-bool includeBodyguard = false;
-bool includeGamechanger = false;
+  bool includeBodyguard = false;
+  bool includeGamechanger = false;
 
   void _startGame() {
     int totalPlayers = widget.players.length;
@@ -738,6 +738,8 @@ else {
   }
   
   void _goToNextPlayer() {
+print("Moving to next player. Current index: $currentPlayerIndex");
+  print("hasSelected before reset: $hasSelected");
   setState(() {
     currentPlayerIndex++;
     
@@ -749,18 +751,50 @@ else {
       selectedPlayer = null;
       detectiveResult = null;
       villagerGuess = null;
+print("hasSelected reset to false for next player");
     }
   });
+isProcessing = false;  // Add this
 }
   
- void nextPlayer() {
-  // Check if player has selected OR killers are done voting
-  if (!hasSelected && !killersDone) {
+ bool isProcessing = false;  // Add this with your variables
+
+void nextPlayer() {
+  // Prevent double calling
+  if (isProcessing) return;
+  isProcessing = true;
+  String currentPlayer = alivePlayers[currentPlayerIndex];
+  String currentRole = playerRoles[currentPlayer]!;
+  
+  print("nextPlayer called. Current player: $currentPlayer, Role: $currentRole");
+  print("hasSelected: $hasSelected, killersDone: $killersDone");
+  
+  // For Killers and Godfather: they can only pass when all killers have voted OR they have selected
+  if ((currentRole == "Killer" || currentRole == "Godfather")) {
+    if (killersDone) {
+      // All killers have voted, allow pass
+      _goToNextPlayer();
+      return;
+    }
+    if (!hasSelected) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please select a player to kill!")),
+      );
+      return;
+    }
+    _goToNextPlayer();
+    return;
+  }
+  
+  // For ALL OTHER ROLES (Jester, Villager, Doctor, Detective, Gamechanger, Grandma, Bodyguard)
+  // They MUST select before passing
+  if (!hasSelected) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("Please select a player first!")),
     );
     return;
   }
+  
   _goToNextPlayer();
 }
   
@@ -884,7 +918,7 @@ if (gamechangerSwap.length == 2) {
     if (playerRoles[actualTarget] == "Jester") {
       jesters.remove(actualTarget);
       if (jesters.isEmpty) {
-        result += "\n\n🃏 JESTER TEAM WINS! All Jesters eliminated! 🃏";
+        result += "🃏 JESTER TEAM WINS! All Jesters eliminated! 🃏\n\n";
         gameEnded = true;
       }
     }
@@ -984,54 +1018,22 @@ if (gamechangerSwap.length == 2) {
   });
 }
   
-void startDiscussion() {
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => DiscussionScreen(
-        players: widget.players,
-        playerRoles: playerRoles,
-        alivePlayers: alivePlayers,
-        deadThisRound: deadThisRound,
-        roundNumber: roundNumber,
-        nightResult: nightResult,
+  void startDiscussion() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DiscussionScreen(
+          players: widget.players,
+          playerRoles: playerRoles,
+          alivePlayers: alivePlayers,
+          roundNumber: roundNumber,
+          nightResult: nightResult,
+        ),
       ),
-    ),
-  ).then((eliminated) {
-    // Receive eliminated player from DiscussionScreen
-    print("Back from discussion, eliminated: $eliminated");
-    
-    if (eliminated != null && !gameEnded) {
-      setState(() {
-        alivePlayers.remove(eliminated);
-      });
-    }
-    
-    // Start next round
-    if (!gameEnded && alivePlayers.length > 1) {
-      setState(() {
-        roundNumber++;
-        currentPlayerIndex = 0;
-        killerTarget = null;
-        doctorTarget = null;
-        detectiveTarget = null;
-        detectiveResult = null;
-        gamechangerSwap = [];
-        showNightActions = false;
-        killersDone = false;
-        killerChoices.clear();
-        hasSelected = false;
-        selectedPlayer = null;
-        villagerGuess = null;
-        deadThisRound.clear();
-        
-        for (var player in roleRevealed.keys) {
-          roleRevealed[player] = false;
-        }
-      });
-    }
-  });
-}
+    ).then((_) {
+      if (!gameEnded) startVoting();
+    });
+  }
   
   void startVoting() {
   Navigator.push(
@@ -1075,15 +1077,13 @@ if (eliminated != null && playerRoles[eliminated] == "Jester") {
     return;
   }
 }
-    // Remove eliminated player from alivePlayers
-if (eliminated != null && !gameEnded) {
-  if (alivePlayers.contains(eliminated)) {
-    setState(() {                    // ✅ ADD setState HERE
-      alivePlayers.remove(eliminated);
-    });
-    print("Removed $eliminated from alive players");
-  }
     
+    // Remove eliminated player from alivePlayers
+    if (eliminated != null && !gameEnded) {
+      if (alivePlayers.contains(eliminated)) {
+        alivePlayers.remove(eliminated);
+        print("Removed $eliminated from alive players");
+      }
       print("Alive players AFTER: $alivePlayers");
 
       // Check if Godfather was eliminated
@@ -1663,7 +1663,6 @@ class DiscussionScreen extends StatefulWidget {
   final List<String> players;
   final Map<String, String> playerRoles;
   final List<String> alivePlayers;
-  final List<String> deadThisRound;
   final int roundNumber;
   final String nightResult;
 
@@ -1672,7 +1671,6 @@ class DiscussionScreen extends StatefulWidget {
     required this.players,
     required this.playerRoles,
     required this.alivePlayers,
-    required this.deadThisRound,
     required this.roundNumber,
     required this.nightResult,
   });
@@ -1682,7 +1680,7 @@ class DiscussionScreen extends StatefulWidget {
 }
 
 class _DiscussionScreenState extends State<DiscussionScreen> {
-  int secondsLeft = 184;
+  int secondsLeft = 2;
   Timer? timer;
   bool timerFinished = false;
 
@@ -1724,6 +1722,7 @@ Widget build(BuildContext context) {
     appBar: AppBar(
       title: Text("☀️ Day Phase - Discussion - Round ${widget.roundNumber}"),
       backgroundColor: Colors.grey[900],
+automaticallyImplyLeading: false,
     ),
     body: Column(
       children: [
@@ -1784,36 +1783,31 @@ Widget build(BuildContext context) {
                     style: const TextStyle(fontSize: 18, color: Colors.green),
                   ),
                   const SizedBox(height: 30),
-                  if (timerFinished)
-                    ElevatedButton(
-  onPressed: () async {
-      // Wait for voting to finish and get eliminated player
-      final eliminated = await Navigator.push(
-        context,
-    MaterialPageRoute(
-      builder: (context) => VotingScreen(
-        players: widget.players,
-        playerRoles: widget.playerRoles,
-        alivePlayers: widget.alivePlayers,
-        deadThisRound: widget.deadThisRound,
-        roundNumber: widget.roundNumber,
-        nightResult: widget.nightResult,
-        godfather: null,
+                 if (timerFinished)
+  Column(
+    children: [
+      // BACK button
+      ElevatedButton(
+        onPressed: () {
+          Navigator.pop(context);  // Goes back to GameScreen
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.green,
+          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
+        ),
+        child: const Text(
+          "STAR VOTING",
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
       ),
-    ),
-  );
-// Return eliminated player back to GameScreen
-      Navigator.pop(context, eliminated);
-},
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                      ),
-                      child: const Text("START VOTING", style: TextStyle(fontSize: 18)),
-                    ),
-               
-                  ],
-                ),
+    ],
+  ),
+],
+  ),
+
               ),
             ),
           ),
@@ -1891,7 +1885,6 @@ void _updateVotersList() {
   int getVotesLeft(String player) => 2 - playerVotes[player]!.length;
 
   void castVote(String voter, String target) {
-print("CASTING VOTE - Voter: $voter, Target: $target");  // ADD THIS
     if (playerVotes[voter]!.contains(target)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("❌ You cannot vote for the same person twice!")),
@@ -1903,7 +1896,7 @@ print("CASTING VOTE - Voter: $voter, Target: $target");  // ADD THIS
       playerVotes[voter]!.add(target);
       votes[target] = votes[target]! + 1;
     });
-     print("Updated votes: $votes");  // ADD THIS
+    
     // Check if this voter has completed their votes
     if (hasVoted(voter)) {
       _moveToNextVoter();
@@ -1938,9 +1931,6 @@ print("CASTING VOTE - Voter: $voter, Target: $target");  // ADD THIS
         tiedPlayers.add(entry.key);
       }
     }
-// ADD THIS PRINT
-  print("FINAL RESULT - Eliminated player: $eliminated, Votes: $maxVotes");
-  print("Votes map: $votes");
 
     if (tiedPlayers.length > 1) {
       _startTieBreaker(tiedPlayers);
@@ -2028,41 +2018,32 @@ void _finishTieBreaker() {
 
   _showResult(eliminated, maxVotes);
 }
- 
-void _showResult(String? eliminated, int votesCount) {
-  final String? eliminatedPlayer = eliminated;
-  print("ELIMINATED PLAYER BEING SENT: $eliminatedPlayer");
-  
-  // Go to result screen
-  Navigator.push(
+
+  void _showResult(String? eliminated, int votesCount) {
+  // Navigate to result screen
+   Navigator.push(
     context,
     MaterialPageRoute(
       builder: (context) => VotingResultScreen(
-        eliminated: eliminatedPlayer,
+        eliminated: eliminated,
         votesCount: votesCount,
         onContinue: () {
-          print("RETURNING PLAYER: $eliminatedPlayer");
-          // Pop the result screen
+          // This closes the result screen and returns to voting screen
           Navigator.pop(context);
-          // Pop the voting screen and return the player
-          Navigator.pop(context, eliminatedPlayer);
+          // Then close voting screen and return eliminated player
+          Navigator.pop(context, eliminated);
         },
       ),
     ),
   );
 }
-
 void skipToNextVoter() {
   setState(() {
     currentVoterIndex++;
   });
   
   if (currentVoterIndex >= votersList.length) {
-    if (isTieBreaker) {
-      _finishTieBreaker();
-    } else {
-      _showFinalResult();
-    }
+    _showFinalResult();
   }
 }
 
@@ -2098,6 +2079,7 @@ void skipToNextVoter() {
         title: Text(isTieBreaker ? "⚖️ TIE BREAKER - Round ${widget.roundNumber}" : "🗳️ VOTING - Round ${widget.roundNumber}"),
         backgroundColor: Colors.grey[900],
         centerTitle: true,
+automaticallyImplyLeading: false,
       ),
       body: Column(
         children: [
@@ -2336,6 +2318,7 @@ class VotingResultScreen extends StatelessWidget {
         title: const Text("🗳️ VOTING RESULT"),
         backgroundColor: Colors.grey[900],
         centerTitle: true,
+automaticallyImplyLeading: false,
       ),
       body: Center(
         child: Padding(
@@ -2390,7 +2373,7 @@ class VotingResultScreen extends StatelessWidget {
                     ),
                   ),
                   child: const Text(
-                    "KILLERS ARE STILL IN GAME---NEXT ROUND",
+                    "CONTINUE TO NEXT ROUND",
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
