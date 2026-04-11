@@ -133,18 +133,27 @@ class _PlayerSetupScreenState extends State<PlayerSetupScreen> {
             ),
             const SizedBox(height: 20),
             Expanded(
-              child: ListView.builder(
-                itemCount: players.length,
-                itemBuilder: (context, index) {
-                  return Card(
-                    child: ListTile(
-                      title: Text(players[index]),
-                      leading: const Icon(Icons.person),
-                    ),
-                  );
-                },
-              ),
-            ),
+  child: ListView.builder(
+    itemCount: players.length,
+    itemBuilder: (context, index) {
+      return Card(
+        child: ListTile(
+          title: Text(players[index]),
+          leading: const Icon(Icons.person),
+          trailing: IconButton(
+            icon: const Icon(Icons.close, color: Colors.red),
+            onPressed: () {
+              setState(() {
+                players.removeAt(index);
+              });
+            },
+            tooltip: 'Remove player',
+          ),
+        ),
+      );
+    },
+  ),
+),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: startGame,
