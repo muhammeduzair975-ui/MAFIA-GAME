@@ -1680,7 +1680,7 @@ class DiscussionScreen extends StatefulWidget {
 }
 
 class _DiscussionScreenState extends State<DiscussionScreen> {
-  int secondsLeft = 2;
+  int secondsLeft = 182;
   Timer? timer;
   bool timerFinished = false;
 
@@ -1717,7 +1717,9 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
 
   @override
 Widget build(BuildContext context) {
-  return Scaffold(
+  return WillPopScope(
+    onWillPop: () async => false,
+    child: Scaffold(
     backgroundColor: Colors.black,
     appBar: AppBar(
       title: Text("☀️ Day Phase - Discussion - Round ${widget.roundNumber}"),
@@ -1813,6 +1815,7 @@ automaticallyImplyLeading: false,
           ),
         ],
       ),
+),
     );
   }
 }
@@ -2043,15 +2046,20 @@ void skipToNextVoter() {
   });
   
   if (currentVoterIndex >= votersList.length) {
-    _showFinalResult();
+    if (isTieBreaker) {
+      _finishTieBreaker();
+    } else {
+      _showFinalResult();
+    }
   }
 }
-
   @override
   Widget build(BuildContext context) {
     // If all voters have finished, show loading (result will be shown by _showFinalResult)
     if (currentVoterIndex >= votersList.length) {
-      return const Scaffold(
+      return WillPopScope(
+      onWillPop: () async => false,
+      child: const Scaffold(
         backgroundColor: Colors.black,
         body: Center(
           child: Column(
@@ -2067,13 +2075,16 @@ void skipToNextVoter() {
             ],
           ),
         ),
+          ),
       );
     }
     
     String currentVoter = votersList[currentVoterIndex];
 
 
-    return Scaffold(
+    return WillPopScope(
+    onWillPop: () async => false,
+    child: Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
         title: Text(isTieBreaker ? "⚖️ TIE BREAKER - Round ${widget.roundNumber}" : "🗳️ VOTING - Round ${widget.roundNumber}"),
@@ -2291,7 +2302,7 @@ Padding(
     ),
   ],
 ),
-       
+      ), 
     );
   }
 }
@@ -2312,7 +2323,9 @@ class VotingResultScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return WillPopScope(
+  onWillPop: () async => false,
+  child: Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
         title: const Text("🗳️ VOTING RESULT"),
@@ -2341,8 +2354,8 @@ automaticallyImplyLeading: false,
               const SizedBox(height: 40),
               Text(
                 eliminated != null
-                    ? "$eliminated was eliminated!"
-                    : "No one was eliminated!",
+                    ? "$eliminated was eliminated!                         Killers are still in game"
+                    : "No one was eliminated!                         Killers are still in game",
                 style: const TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -2382,6 +2395,7 @@ automaticallyImplyLeading: false,
           ),
         ),
       ),
+),
     );
   }
 }
