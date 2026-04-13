@@ -747,12 +747,12 @@ else {
   }
   
   void _goToNextPlayer() {
-print("Moving to next player. Current index: $currentPlayerIndex");
+  print("Moving to next player. Current index: $currentPlayerIndex");
   print("hasSelected before reset: $hasSelected");
+  
   setState(() {
     currentPlayerIndex++;
     
-    // Simply go to next player - no skipping
     if (currentPlayerIndex >= alivePlayers.length) {
       processNightPhase();
     } else {
@@ -760,28 +760,45 @@ print("Moving to next player. Current index: $currentPlayerIndex");
       selectedPlayer = null;
       detectiveResult = null;
       villagerGuess = null;
-print("hasSelected reset to false for next player");
+      print("hasSelected reset to false for next player");
     }
   });
-isProcessing = false;  // Add this
-}
   
- bool isProcessing = false;  // Add this with your variables
+  // Reset processing flag after state update
+  Future.delayed(Duration(milliseconds: 100), () {
+    isProcessing = false;
+  });
+}
+
+bool isProcessing = false;
 
 void nextPlayer() {
   // Prevent double calling
-  if (isProcessing) return;
+  if (isProcessing) {
+    print("Already processing, ignoring");
+    return;
+  }
+  
   isProcessing = true;
+  
   String currentPlayer = alivePlayers[currentPlayerIndex];
   String currentRole = playerRoles[currentPlayer]!;
   
   print("nextPlayer called. Current player: $currentPlayer, Role: $currentRole");
   print("hasSelected: $hasSelected, killersDone: $killersDone");
   
-  // For Killers and Godfather: they can only pass when all killers have voted OR they have selected
-  if ((currentRole == "Killer" || currentRole == "Godfather")) {
+  // First check: Role must be revealed
+  if (!isRoleRevealed(currentPlayer)) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Please reveal your role first! Tap 👁️")),
+    );
+    isProcessing = false;
+    return;
+  }
+  
+  // For Killers and Godfather
+  if (currentRole == "Killer" || currentRole == "Godfather") {
     if (killersDone) {
-      // All killers have voted, allow pass
       _goToNextPlayer();
       return;
     }
@@ -789,18 +806,32 @@ void nextPlayer() {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please select a player to kill!")),
       );
+      isProcessing = false;
       return;
     }
     _goToNextPlayer();
     return;
   }
   
-  // For ALL OTHER ROLES (Jester, Villager, Doctor, Detective, Gamechanger, Grandma, Bodyguard)
-  // They MUST select before passing
+  // For Gamechanger - needs 2 selections
+  if (currentRole == "Gamechanger") {
+    if (gamechangerSwap.length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please select 2 players to swap!")),
+      );
+      isProcessing = false;
+      return;
+    }
+    _goToNextPlayer();
+    return;
+  }
+  
+  // For all other roles
   if (!hasSelected) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("Please select a player first!")),
     );
+    isProcessing = false;
     return;
   }
   
