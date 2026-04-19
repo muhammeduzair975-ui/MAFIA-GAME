@@ -1821,7 +1821,7 @@ class DiscussionScreen extends StatefulWidget {
 }
 
 class _DiscussionScreenState extends State<DiscussionScreen> {
-  int secondsLeft = 2;
+  int secondsLeft = 180;
   Timer? timer;
   bool timerFinished = false;
 
