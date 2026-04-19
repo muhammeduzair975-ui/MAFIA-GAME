@@ -855,65 +855,7 @@ void processNightPhase() {
 String? grandmaAttacker;
 bool doctorSaved = false;
 
-  // Check Grandma with Gun
-  if (killerTarget != null && playerRoles[killerTarget] == "Grandma") {
-    // The KILLER (who attacked) should die, NOT the Grandma
-    // We need to find who attacked Grandma
-    // The attacker is the one who chose Grandma as target
-    String attacker = killerTarget!;  // This is actually Grandma's name - WRONG!
-    
-    // Instead, the attacker is the killer who made the choice
-    // We need to find which killer selected Grandma
-    String? actualAttacker;
-    for (var entry in killerChoices.entries) {
-      if (entry.value == killerTarget) {
-        actualAttacker = entry.key;
-        break;
-      }
-    }
-  if (actualAttacker != null) {
-grandmaAttacker = actualAttacker;
-      // Check if doctor saved the attacker
-      if (doctorTarget == actualAttacker) {
-        // Doctor saved the attacker, no one dies
-        result += "\n";
-        doctorSaved = true;
-        grandmaKilledAttacker = true;
-        actualTarget = null;
-        deadPlayer = null;
-        killerSucceeded = false;
-      } else {
-        // Grandma kills the attacker
-        result += "\n";
-        alivePlayers.remove(actualAttacker);
-deadThisRound.add(actualAttacker);
-        deadPlayer = actualAttacker;
-        actualTarget = null;
-        grandmaKilledAttacker = true;
-        killerSucceeded = true;
-      }
-    } else {
-      // Fallback: remove the first killer
-      String firstKiller = killerChoices.keys.first;
-grandmaAttacker = firstKiller;
-      if (doctorTarget == firstKiller) {
-        result += "\n";
-        doctorSaved = true;
-        grandmaKilledAttacker = true;
-        deadPlayer = null;
-      } else {
-        result += "\n";
-        alivePlayers.remove(firstKiller);
-        deadPlayer = firstKiller;
-        grandmaKilledAttacker = true;
- deadThisRound.add(firstKiller);
-      }
-      actualTarget = null;
-    }
-  }
-    
-  
-  // GAMECHANGER SWAP (affects Killer and Doctor only, NOT Detective)
+// GAMECHANGER SWAP (affects Killer and Doctor only, NOT Detective)
 if (gamechangerSwap.length == 2) {
   String playerA = gamechangerSwap[0];
   String playerB = gamechangerSwap[1];
@@ -942,6 +884,131 @@ if (gamechangerSwap.length == 2) {
     result += "🔄 Gamechanger swapped $playerA ↔ $playerB!\n";
   }
 }
+
+  // Check Grandma with Gun
+  if (actualTarget != null && playerRoles[actualTarget] == "Grandma") {
+    // The KILLER (who attacked) should die, NOT the Grandma
+    // We need to find who attacked Grandma
+    // The attacker is the one who chose Grandma as target
+    String attacker = killerTarget!;  // This is actually Grandma's name - WRONG!
+    
+    // Instead, the attacker is the killer who made the choice
+    // We need to find which killer selected Grandma
+    String? actualAttacker;
+    for (var entry in killerChoices.entries) {
+      if (entry.value == killerTarget) {
+        actualAttacker = entry.key;
+        break;
+      }
+    }
+  if (actualAttacker != null) {
+grandmaAttacker = actualAttacker;
+      // Check if doctor saved the attacker
+      if (doctorTarget == actualAttacker) {
+        // Doctor saved the attacker, no one dies
+        result += "\n";
+        doctorSaved = true;
+        grandmaKilledAttacker = true;
+        actualTarget = null;
+        deadPlayer = null;
+        killerSucceeded = false;
+      } else {
+  // Grandma kills the attacker
+  result += "\n";
+  alivePlayers.remove(actualAttacker);
+  deadThisRound.add(actualAttacker);
+  deadPlayer = actualAttacker;
+  actualTarget = null;
+  grandmaKilledAttacker = true;
+  killerSucceeded = true;
+  
+  // ✅ ADD THIS WHOLE BLOCK HERE
+  // Check if killed attacker was Godfather
+  if (actualAttacker == godfather) {
+    if (bodyguard != null && alivePlayers.contains(bodyguard)) {
+      playerRoles[bodyguard!] = "Godfather";
+      godfather = bodyguard;
+      result += "";
+    } else {
+      // All killers die
+      List<String> killersToRemove = [];
+      for (var player in alivePlayers) {
+        String role = playerRoles[player]!;
+        if (role == "Killer" || role == "Godfather") {
+          killersToRemove.add(player);
+        }
+      }
+      for (var player in killersToRemove) {
+        alivePlayers.remove(player);
+        deadThisRound.add(player);
+      }
+      result += "   ⚡ GODFATHER DIED!";
+    result += "\n\n All killers die immediately!";
+    result += "\n\n  🏆 VILLAGERS WIN! 🏆";
+      gameEnded = true;
+      nightResult = result;
+      setState(() {
+        showNightActions = true;
+      });
+      return;
+    }
+  }
+}
+    } else {
+      // Fallback: remove the first killer
+      String firstKiller = killerChoices.keys.first;
+grandmaAttacker = firstKiller;
+      if (doctorTarget == firstKiller) {
+        result += "\n";
+        doctorSaved = true;
+        grandmaKilledAttacker = true;
+        deadPlayer = null;
+      } else {
+  result += "\n";
+  alivePlayers.remove(firstKiller);
+  deadPlayer = firstKiller;
+  grandmaKilledAttacker = true;
+  deadThisRound.add(firstKiller);
+  
+  // ✅ ADD THIS WHOLE BLOCK HERE
+  // Check if killed attacker was Godfather
+  if (firstKiller == godfather) {
+    if (bodyguard != null && alivePlayers.contains(bodyguard)) {
+      playerRoles[bodyguard!] = "Godfather";
+      godfather = bodyguard;
+      result += "";
+    } else {
+      // All killers die
+      List<String> killersToRemove = [];
+      for (var player in alivePlayers) {
+        String role = playerRoles[player]!;
+        if (role == "Killer" || role == "Godfather") {
+          killersToRemove.add(player);
+        }
+      }
+      for (var player in killersToRemove) {
+        alivePlayers.remove(player);
+        deadThisRound.add(player);
+      }
+ result += "   ⚡ GODFATHER DIED!";
+    result += "\n\n All killers die immediately!";
+    result += "\n\n  🏆 VILLAGERS WIN! 🏆";
+      gameEnded = true;
+      gameEnded = true;
+      nightResult = result;
+      setState(() {
+        showNightActions = true;
+      });
+      return;
+    }
+  }
+}
+      actualTarget = null;
+    }
+  }
+    
+  
+  
   
   // Doctor save
   doctorSaved = (doctorTarget == actualTarget && actualTarget != null);
@@ -963,12 +1030,46 @@ if (gamechangerSwap.length == 2) {
       }
     }
     
-    if (actualTarget == godfather) {
-      if (bodyguard != null && alivePlayers.contains(bodyguard)) {
-        playerRoles[bodyguard!] = "Godfather";
-        godfather = bodyguard;
+   if (actualTarget == godfather) {
+  // Remove Godfather first
+  alivePlayers.remove(godfather);
+  if (godfather != null) {
+  deadThisRound.add(godfather!);
+}
+  deadPlayer = godfather;
+  
+  // Check if Bodyguard is alive
+  if (bodyguard != null && alivePlayers.contains(bodyguard)) {
+    // Bodyguard becomes new Godfather
+    playerRoles[bodyguard!] = "Godfather";
+    godfather = bodyguard;
+    print("${bodyguard!} became the new Godfather!");
+  } else {
+    // No Bodyguard, all killers die immediately
+    List<String> killersToRemove = [];
+    for (var player in alivePlayers) {
+      String role = playerRoles[player]!;
+      if (role == "Killer" || role == "Godfather") {
+        killersToRemove.add(player);
       }
     }
+    for (var player in killersToRemove) {
+      alivePlayers.remove(player);
+      deadThisRound.add(player);
+    }
+    
+     result += "   ⚡ GODFATHER DIED!";
+    result += "\n\n All killers die immediately!";
+    result += "\n\n  🏆 VILLAGERS WIN! 🏆";
+    gameEnded = true;
+    
+    nightResult = result;
+    setState(() {
+      showNightActions = true;
+    });
+    return;
+  }
+}
   } else if (doctorSaved) {
     // Doctor succeeded (saved the target)
     doctorSucceeded = true;
@@ -1720,7 +1821,7 @@ class DiscussionScreen extends StatefulWidget {
 }
 
 class _DiscussionScreenState extends State<DiscussionScreen> {
-  int secondsLeft = 182;
+  int secondsLeft = 2;
   Timer? timer;
   bool timerFinished = false;
 
