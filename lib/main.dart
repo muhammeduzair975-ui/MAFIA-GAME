@@ -10,11 +10,14 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Mafia Game',
-      theme: ThemeData.dark(),
-      home: const HomePage(),
+    return WillPopScope(
+      onWillPop: () async => false,  // ← ONE LINE disables back button for all screens
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'Mafia Game',
+        theme: ThemeData.dark(),
+        home: const HomePage(),
+      ),
     );
   }
 }
