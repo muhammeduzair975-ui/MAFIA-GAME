@@ -1355,7 +1355,9 @@ List<String> _getAllKillers() {
   Widget build(BuildContext context) {
     // ========== START ROUND SCREEN ==========
     if (!gameStarted) {
-      return Scaffold(
+  return WillPopScope(
+    onWillPop: () async => false,
+    child: Scaffold(
         backgroundColor: Colors.black,
         appBar: AppBar(
           title: const Text("MAFIA GAME"),
@@ -1418,13 +1420,16 @@ List<String> _getAllKillers() {
               ),
             ),
           ),
+),
         ),
       );
     }
     
     // ========== NIGHT RESULT SCREEN ==========
     if (showNightActions) {
-      return Scaffold(
+  return WillPopScope(
+    onWillPop: () async => false,
+    child: Scaffold(
         backgroundColor: Colors.black,
         appBar: AppBar(title: Text("🌙 Night Result - Round $roundNumber")),
         body: SafeArea(
@@ -1461,6 +1466,7 @@ List<String> _getAllKillers() {
             ),
           ),
         ),
+),
       );
     }
     
@@ -1478,7 +1484,9 @@ List<String> _getAllKillers() {
     
 
     
-    return Scaffold(
+    return  WillPopScope(
+  onWillPop: () async => false,
+  child: Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
         title: Text("🌙 Night Phase - Round $roundNumber"),
@@ -1798,6 +1806,7 @@ Padding(
           ],
         ),
       ),
+),
     );
   }
 }
