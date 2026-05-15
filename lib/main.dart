@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   runApp(const MyApp());
@@ -85,13 +87,32 @@ class PlayerSetupScreen extends StatefulWidget {
 class _PlayerSetupScreenState extends State<PlayerSetupScreen> {
   final TextEditingController _controller = TextEditingController();
   List<String> players = [];
+@override
+  void initState() {
+    super.initState();
+    _loadPlayers();
+  }
 
-  void addPlayer() {
+  Future<void> _loadPlayers() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedPlayers = prefs.getStringList('saved_players') ?? [];
+    setState(() {
+      players = savedPlayers;
+    });
+  }
+
+  Future<void> _savePlayers() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('saved_players', players);
+  }
+
+   void addPlayer() {
     if (_controller.text.isNotEmpty) {
       setState(() {
         players.add(_controller.text);
         _controller.clear();
       });
+      _savePlayers();
     }
   }
 
@@ -149,6 +170,7 @@ class _PlayerSetupScreenState extends State<PlayerSetupScreen> {
               setState(() {
                 players.removeAt(index);
               });
+_savePlayers();
             },
             tooltip: 'Remove player',
           ),
@@ -232,7 +254,7 @@ if (killerCount < 1) killerCount = 1;
       roles.add("Villager");
     }
     
-    roles.shuffle();
+     roles.shuffle(Random(DateTime.now().millisecondsSinceEpoch));
     
     int actualKillers = roles.where((r) => r == "Killer" || r == "Godfather").length;
     
@@ -1938,7 +1960,6 @@ automaticallyImplyLeading: false,
                     style: const TextStyle(fontSize: 18, color: Colors.green),
                   ),
                   const SizedBox(height: 30),
-                 if (timerFinished)
   Column(
     children: [
       // BACK button
@@ -2037,8 +2058,8 @@ void _updateVotersList() {
   }
 }
 
-  bool hasVoted(String player) => playerVotes[player]!.length >= 2;
-  int getVotesLeft(String player) => 2 - playerVotes[player]!.length;
+  bool hasVoted(String player) => playerVotes[player]!.length >= 1;
+  int getVotesLeft(String player) => 1 - playerVotes[player]!.length;
 
   void castVote(String voter, String target) {
     if (playerVotes[voter]!.contains(target)) {
@@ -2322,7 +2343,7 @@ automaticallyImplyLeading: false,
             child: Text(
               isTieBreaker
                   ? "Vote for 1 player (cannot vote for yourself)"
-                  : "Vote for 2 different players (cannot vote same person twice)",
+                  : "( Don't press skip button unless you want to skip )",
               style: const TextStyle(fontSize: 13, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
@@ -2336,7 +2357,7 @@ automaticallyImplyLeading: false,
               padding: const EdgeInsets.all(12),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 3,
-                childAspectRatio: 1.5,
+                childAspectRatio: 1.0,
                 mainAxisSpacing: 6,
                 crossAxisSpacing: 6,
               ),// Player grid
@@ -2446,10 +2467,10 @@ Padding(
         child: ElevatedButton(
           onPressed: skipToNextVoter,
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.orange,
+            backgroundColor: Colors.red,
             padding: const EdgeInsets.symmetric(vertical: 14),
           ),
-          child: const Text("SKIP / NEXT VOTER"),
+          child: const Text("SKIP VOTE"),
         ),
       ),
     ),
